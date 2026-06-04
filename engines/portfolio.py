@@ -1,59 +1,114 @@
-"""Portfolio optimization: efficient frontier, max Sharpe, min variance."""
+# portfolio.py
+# ------------
+# Markowitz efficient frontier via random portfolio sampling.
+#
+# The idea from Markowitz (1952): for any level of risk, there's an optimal
+# portfolio that maximises return. The set of these portfolios is the efficient
+# frontier. Anything below it is suboptimal — same risk, less return.
+#
+# We sample 500 random weight vectors (Dirichlet distribution = uniform over
+# the simplex) rather than solving the full QP. 500 is enough to get a dense,
+# visually clear frontier and it's way more robust than optimisation when
+# the covariance matrix is near-singular (which it often is with GCC data).
+#
+# Two special portfolios:
+#   Max Sharpe  = best risk-adjusted return: (E[r] - rf) / sigma
+#   Min Variance = lowest possible vol, ignoring return
+#
+# Correlation matrix tells you diversification benefit.
+# Low correlation between assets = the frontier bows further left.
+
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
 
 
-def returns_cov(prices, rf=0.04):
-    """Daily->annual mean returns and covariance."""
-    rets = prices.pct_change().dropna()
-    mean_ann = rets.mean() * 252
-    cov_ann = rets.cov() * 252
-    return rets, mean_ann, cov_ann
+@dataclass
+class PortfolioPoint:
+    weights:    np.ndarray
+    tickers:    list[str]
+    exp_return: float
+    volatility: float
+    sharpe:     float
 
 
-def efficient_frontier(mean_ann, cov_ann, rf=0.04, n_port=500, seed=42):
-    """Generate n_port random portfolios."""
-    np.random.seed(seed)
-    n = len(mean_ann)
-    mu = mean_ann.values
-    cov = cov_ann.values
-    res = {"ret": [], "vol": [], "sharpe": [], "weights": []}
-    for _ in range(n_port):
-        w = np.random.random(n)
-        w /= w.sum()
-        r = float(w @ mu)
-        v = float(np.sqrt(w @ cov @ w))
-        s = (r - rf) / v if v > 0 else 0.0
-        res["ret"].append(r)
-        res["vol"].append(v)
-        res["sharpe"].append(s)
-        res["weights"].append(w)
-    for k in ("ret", "vol", "sharpe"):
-        res[k] = np.array(res[k])
-    res["weights"] = np.array(res["weights"])
-    return res
+@dataclass
+class FrontierResult:
+    tickers:      list[str]
+    returns_arr:  np.ndarray
+    vols_arr:     np.ndarray
+    sharpes_arr:  np.ndarray
+    weights_arr:  np.ndarray
+    max_sharpe:   PortfolioPoint
+    min_vol:      PortfolioPoint
+    cov_matrix:   pd.DataFrame
+    corr_matrix:  pd.DataFrame
+    mean_returns: pd.Series
 
 
-def max_sharpe(frontier, tickers):
-    i = int(np.argmax(frontier["sharpe"]))
-    return _pack(frontier, i, tickers)
+class PortfolioOptimiser:
+    """
+    price_dict: output of fetcher.fetch_multiple — dict of {ticker: ohlcv_df}
+    risk_free:  annual risk-free rate for Sharpe calculation
+    n_portfolios: how many random weights to try (500 is plenty)
+    """
 
+    def __init__(self, price_dict, risk_free=0.05, n_portfolios=500, seed=42):
+        self.risk_free    = risk_free
+        self.n_portfolios = n_portfolios
+        self.rng          = np.random.default_rng(seed)
 
-def min_variance(frontier, tickers):
-    i = int(np.argmin(frontier["vol"]))
-    return _pack(frontier, i, tickers)
+        closes  = {t: df["Close"].rename(t) for t, df in price_dict.items() if not df.empty}
+        prices  = pd.concat(closes, axis=1).dropna()
+        self.returns  = prices.pct_change().dropna()
+        self.tickers  = list(self.returns.columns)
+        self.n_assets = len(self.tickers)
 
+    def compute(self) -> FrontierResult:
+        mu   = self.returns.mean() * 252
+        cov  = self.returns.cov()  * 252
+        corr = self.returns.corr()
 
-def _pack(frontier, i, tickers):
-    return {"ret": float(frontier["ret"][i]), "vol": float(frontier["vol"][i]),
-            "sharpe": float(frontier["sharpe"][i]),
-            "weights": dict(zip(tickers, frontier["weights"][i].round(4)))}
+        ret_arr = np.zeros(self.n_portfolios)
+        vol_arr = np.zeros(self.n_portfolios)
+        sh_arr  = np.zeros(self.n_portfolios)
+        w_arr   = np.zeros((self.n_portfolios, self.n_assets))
 
+        for i in range(self.n_portfolios):
+            w              = self._random_weights()
+            r, v, s        = self._stats(w, mu.values, cov.values)
+            ret_arr[i]     = r
+            vol_arr[i]     = v
+            sh_arr[i]      = s
+            w_arr[i]       = w
 
-def analyze(prices, rf=0.04, n_port=500):
-    rets, mean_ann, cov_ann = returns_cov(prices, rf)
-    fr = efficient_frontier(mean_ann, cov_ann, rf, n_port)
-    tickers = list(prices.columns)
-    return {"frontier": fr, "max_sharpe": max_sharpe(fr, tickers),
-            "min_var": min_variance(fr, tickers),
-            "mean_ann": mean_ann, "cov_ann": cov_ann, "tickers": tickers}
+        ms = int(np.argmax(sh_arr))
+        mv = int(np.argmin(vol_arr))
+
+        return FrontierResult(
+            tickers      = self.tickers,
+            returns_arr  = ret_arr,
+            vols_arr     = vol_arr,
+            sharpes_arr  = sh_arr,
+            weights_arr  = w_arr,
+            max_sharpe   = self._point(w_arr[ms], mu, ret_arr[ms], vol_arr[ms], sh_arr[ms]),
+            min_vol      = self._point(w_arr[mv], mu, ret_arr[mv], vol_arr[mv], sh_arr[mv]),
+            cov_matrix   = cov,
+            corr_matrix  = corr,
+            mean_returns = mu,
+        )
+
+    def _random_weights(self) -> np.ndarray:
+        # exponential trick: normalised exponentials = uniform on simplex
+        w = self.rng.exponential(1.0, self.n_assets)
+        return w / w.sum()
+
+    def _stats(self, w, mu, cov):
+        ret    = float(w @ mu)
+        vol    = float(np.sqrt(max(w @ cov @ w, 1e-12)))
+        sharpe = (ret - self.risk_free) / vol
+        return ret, vol, sharpe
+
+    def _point(self, w, mu, ret, vol, sharpe):
+        return PortfolioPoint(weights=w, tickers=self.tickers,
+                              exp_return=ret, volatility=vol, sharpe=sharpe)

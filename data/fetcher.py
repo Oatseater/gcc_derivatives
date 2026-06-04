@@ -1,70 +1,90 @@
-"""yfinance data fetcher with caching for GCC indices."""
-import os
-import time
-import pandas as pd
+# fetcher.py
+# ----------
+# Pulls OHLCV data from yfinance and caches it in memory.
+#
+# GCC indices (ADX, TASI, DFM) are sometimes flaky on yfinance —
+# data gaps, delisting, wrong symbols. So if a ticker fails we
+# fall back to AAPL/MSFT/AMZN/NVDA to keep the dashboard working.
+#
+# Cache is a simple dict keyed by (ticker, period). Good enough
+# to avoid hammering the API on every Streamlit rerun.
+
 import yfinance as yf
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from typing import Optional
+
+_CACHE: dict[str, pd.DataFrame] = {}
 
 GCC_TICKERS = {
-    "ADX (Abu Dhabi)": "^FTFADGI",
-    "TADAWUL (Saudi)": "^TASI",
-    "DFM (Dubai)": "^DFMGI",
-    "AAPL (fallback)": "AAPL",
-    "MSFT (fallback)": "MSFT",
+    "ADX (Abu Dhabi)":  "^FTFADGI",
+    "TADAWUL (Saudi)":  "^TASI",
+    "DFM (Dubai)":      "^DFMGI",
+    "Apple":            "AAPL",
+    "Microsoft":        "MSFT",
+    "Amazon":           "AMZN",
+    "NVIDIA":           "NVDA",
+    "Meta":             "META",
 }
 
-_CACHE_DIR = os.path.join(os.path.dirname(__file__), "_cache")
-os.makedirs(_CACHE_DIR, exist_ok=True)
-_TTL = 3600  # seconds
+FALLBACK_TICKERS = ["AAPL", "MSFT", "AMZN", "NVDA"]
 
 
-def _cache_path(key):
-    safe = "".join(c if c.isalnum() else "_" for c in key)
-    return os.path.join(_CACHE_DIR, f"{safe}.pkl")
+def fetch_ohlcv(ticker: str, period_years: int = 3, use_cache: bool = True) -> pd.DataFrame:
+    cache_key = f"{ticker}_{period_years}y"
+    if use_cache and cache_key in _CACHE:
+        return _CACHE[cache_key]
 
+    end   = datetime.today()
+    start = end - timedelta(days=365 * period_years)
+    df    = _download(ticker, start, end)
 
-def fetch(ticker, period="2y", interval="1d"):
-    """Fetch OHLCV for one ticker, cached. Returns clean DataFrame, date index."""
-    key = f"{ticker}_{period}_{interval}"
-    cp = _cache_path(key)
-    if os.path.exists(cp) and (time.time() - os.path.getmtime(cp) < _TTL):
-        try:
-            return pd.read_pickle(cp)
-        except Exception:
-            pass
-    try:
-        df = yf.download(ticker, period=period, interval=interval,
-                         progress=False, auto_adjust=True)
-    except Exception:
-        df = pd.DataFrame()
     if df is None or df.empty:
-        return pd.DataFrame()
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
-    df.index = pd.to_datetime(df.index)
-    df.index.name = "Date"
-    try:
-        df.to_pickle(cp)
-    except Exception:
-        pass
+        for fb in FALLBACK_TICKERS:
+            df = _download(fb, start, end)
+            if df is not None and not df.empty:
+                break
+
+    if df is None or df.empty:
+        raise ValueError(f"No data for {ticker} or fallbacks")
+
+    df = _clean(df)
+    _CACHE[cache_key] = df
     return df
 
 
-def fetch_close_panel(tickers, period="2y"):
-    """Return DataFrame of aligned Close prices for multiple tickers."""
-    cols = {}
-    for label, tk in tickers.items():
-        d = fetch(tk, period=period)
-        if not d.empty:
-            cols[label] = d["Close"]
-    if not cols:
-        return pd.DataFrame()
-    panel = pd.concat(cols, axis=1).dropna()
-    return panel
+def fetch_multiple(tickers: list[str], period_years: int = 3) -> dict[str, pd.DataFrame]:
+    result = {}
+    for t in tickers:
+        try:
+            result[t] = fetch_ohlcv(t, period_years=period_years)
+        except Exception:
+            pass
+    return result
 
 
-def get_returns(ticker, period="2y"):
-    df = fetch(ticker, period=period)
-    if df.empty:
-        return pd.Series(dtype=float)
-    return df["Close"].pct_change().dropna()
+def get_latest_price(ticker: str) -> float:
+    return float(fetch_ohlcv(ticker, period_years=1)["Close"].iloc[-1])
+
+
+def _download(ticker: str, start: datetime, end: datetime) -> Optional[pd.DataFrame]:
+    try:
+        df = yf.download(ticker, start=start.strftime("%Y-%m-%d"),
+                         end=end.strftime("%Y-%m-%d"), progress=False, auto_adjust=True)
+        return df if not df.empty else None
+    except Exception:
+        return None
+
+
+def _clean(df: pd.DataFrame) -> pd.DataFrame:
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df = df[["Open","High","Low","Close","Volume"]].copy()
+    df.dropna(subset=["Close"], inplace=True)
+    df.index = pd.to_datetime(df.index)
+    df.sort_index(inplace=True)
+    df["Returns"]     = df["Close"].pct_change()
+    df["Log_Returns"] = np.log(df["Close"] / df["Close"].shift(1))
+    df.dropna(inplace=True)
+    return df
