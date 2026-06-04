@@ -103,9 +103,10 @@ section[data-testid="stSidebar"]{display:none!important}
   font-family:'Geist Mono',monospace!important;
 }
 [data-testid="metric-container"] [data-testid="stMetricValue"]{
-  font-size:13px!important;font-weight:500!important;
+  font-size:12px!important;font-weight:500!important;
   font-family:'Geist Mono',monospace!important;
   color:#e2e8f0!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
 }
 [data-testid="metric-container"] [data-testid="stMetricDelta"]{
   font-size:10px!important;color:#4a5568!important;
