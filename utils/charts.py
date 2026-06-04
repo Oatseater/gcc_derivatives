@@ -62,7 +62,7 @@ def iv_surface_chart(S: float, sigma: float) -> go.Figure:
     The x-axis is strike (% of spot), y-axis is time to expiry, z-axis is IV.
     The characteristic 'smile' arises from demand for OTM puts (downside protection).
     """
-    K_grid, T_grid, IV_grid = iv_surface(S=S, base_vol=sigma)
+    K_grid, T_grid, IV_grid = iv_surface(S=S, r=0.05, base_vol=sigma)
 
     fig = go.Figure(data=[
         go.Surface(

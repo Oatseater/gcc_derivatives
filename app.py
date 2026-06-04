@@ -212,7 +212,7 @@ st.markdown(f"""
   <div class="gcc-right">
     <div class="gcc-dot"></div>
     <div class="gcc-live">LIVE</div>
-    <div class="gcc-time">{datetime.now().strftime('%H:%M:%S')} GST</div>
+    <div class="gcc-time">GCC / MENA Markets</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
