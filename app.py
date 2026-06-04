@@ -1,7 +1,6 @@
-"""
-app.py — GCC Derivatives Terminal
-Dense Bloomberg-style layout. No AI slop.
-"""
+# app.py
+# GCC Derivatives Terminal
+# Run: streamlit run app.py
 
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -12,17 +11,17 @@ import streamlit as st
 
 st.set_page_config(
     page_title="GCC Derivatives Terminal",
-    page_icon="▣",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ── CSS: proper terminal, not AI dashboard ─────────────────────────────────────
+# -- CSS: proper terminal, not AI dashboard -------------------------------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2family=Geist+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500&display=swap');
 
-/* ── Reset ── */
+/* -- Reset -- */
 html,body,[class*="css"]{
   font-family:'Geist Mono',monospace!important;
   background:#08090c!important;
@@ -33,12 +32,12 @@ html,body,[class*="css"]{
   max-width:100%!important;
 }
 
-/* ── Hide Streamlit chrome ── */
+/* -- Hide Streamlit chrome -- */
 #MainMenu,footer,header,[data-testid="stToolbar"]{display:none!important}
 [data-testid="stDecoration"]{display:none!important}
 section[data-testid="stSidebar"]{display:none!important}
 
-/* ── Top bar ── */
+/* -- Top bar -- */
 .gcc-topbar{
   display:flex;align-items:center;justify-content:space-between;
   padding:0 20px;height:36px;
@@ -60,7 +59,7 @@ section[data-testid="stSidebar"]{display:none!important}
 .gcc-live{font-size:10px;color:#4a5568;letter-spacing:.1em}
 .gcc-time{font-size:10px;color:#4a5568}
 
-/* ── Tabs ── */
+/* -- Tabs -- */
 [data-testid="stTabs"] [role="tablist"]{
   background:#0d0f14!important;
   border-bottom:1px solid #1d2130!important;
@@ -90,7 +89,7 @@ section[data-testid="stSidebar"]{display:none!important}
 [data-testid="stTabs"] [data-baseweb="tab-highlight"]{display:none!important}
 [data-testid="stTabs"] [data-baseweb="tab-border"]{display:none!important}
 
-/* ── Metrics strip ── */
+/* -- Metrics strip -- */
 [data-testid="metric-container"]{
   background:#0d0f14!important;
   border:none!important;
@@ -112,10 +111,10 @@ section[data-testid="stSidebar"]{display:none!important}
   font-size:10px!important;color:#4a5568!important;
 }
 
-/* ── Dividers ── */
+/* -- Dividers -- */
 hr{border-color:#1d2130!important;margin:0!important}
 
-/* ── Dataframes ── */
+/* -- Dataframes -- */
 [data-testid="stDataFrame"]{
   border:1px solid #1d2130!important;border-radius:3px!important;
 }
@@ -131,7 +130,7 @@ hr{border-color:#1d2130!important;margin:0!important}
   border-bottom:1px solid #111318!important;
 }
 
-/* ── Inputs / selects ── */
+/* -- Inputs / selects -- */
 [data-testid="stSelectbox"] div[data-baseweb="select"] > div{
   background:#111318!important;border-color:#252a38!important;
   border-radius:3px!important;font-size:11px!important;
@@ -143,12 +142,12 @@ hr{border-color:#1d2130!important;margin:0!important}
   font-family:'Geist Mono',monospace!important;
 }
 
-/* ── Radio ── */
+/* -- Radio -- */
 [data-testid="stRadio"] label{
   font-size:11px!important;font-family:'Geist Mono',monospace!important;
 }
 
-/* ── Section headers ── */
+/* -- Section headers -- */
 .gcc-section{
   font-size:9px;color:#4a5568;letter-spacing:.14em;
   text-transform:uppercase;padding:10px 0 6px;
@@ -160,15 +159,15 @@ hr{border-color:#1d2130!important;margin:0!important}
   font-family:'Geist Mono',monospace;
 }
 
-/* ── Column padding reset ── */
+/* -- Column padding reset -- */
 [data-testid="column"]{padding:0 6px!important}
 [data-testid="stVerticalBlock"]{gap:6px!important}
 
-/* ── Plotly ── */
+/* -- Plotly -- */
 .js-plotly-plot .plotly .main-svg{background:transparent!important}
 .stPlotlyChart{border:1px solid #1d2130;border-radius:3px}
 
-/* ── Status bar ── */
+/* -- Status bar -- */
 .gcc-statusbar{
   display:flex;align-items:center;gap:20px;
   padding:0 20px;height:22px;
@@ -177,18 +176,18 @@ hr{border-color:#1d2130!important;margin:0!important}
 }
 .gcc-statusbar span{color:#93c5fd;font-weight:500}
 
-/* ── Regime badge colors ── */
+/* -- Regime badge colors -- */
 .regime-calm{background:#052e16;border:1px solid #22c55e;color:#22c55e}
 .regime-normal{background:#0c1a3a;border:1px solid #3b82f6;color:#3b82f6}
 .regime-fearful{background:#2d0a0a;border:1px solid #ef4444;color:#ef4444}
 
-/* ── Scrollbar ── */
+/* -- Scrollbar -- */
 ::-webkit-scrollbar{width:4px;background:#08090c}
 ::-webkit-scrollbar-thumb{background:#1d2130;border-radius:2px}
 </style>
 """, unsafe_allow_html=True)
 
-# ── Imports ────────────────────────────────────────────────────────────────────
+# -- Imports --------------------------------------------------------------------
 from data.fetcher          import fetch_ohlcv, get_latest_price, GCC_TICKERS, fetch_multiple
 from engines.black_scholes import BlackScholes, implied_volatility
 from engines.monte_carlo   import MonteCarlo
@@ -199,15 +198,15 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
-# ── Top bar ───────────────────────────────────────────────────────────────────
+# -- Top bar -------------------------------------------------------------------
 st.markdown(f"""
 <div class="gcc-topbar">
   <div style="display:flex;align-items:center;gap:20px">
     <div class="gcc-logo">GCC <span>/</span> Derivatives Terminal</div>
     <div class="gcc-tickers">
-      <div class="gcc-ticker"><span class="sym">AAPL</span><span class="px">$213.88</span><span class="chg" style="color:#22c55e">▲1.24%</span></div>
-      <div class="gcc-ticker"><span class="sym">^TASI</span><span class="px">11,842</span><span class="chg" style="color:#ef4444">▼0.38%</span></div>
-      <div class="gcc-ticker"><span class="sym">^DFMGI</span><span class="px">4,521</span><span class="chg" style="color:#22c55e">▲0.71%</span></div>
+      <div class="gcc-ticker"><span class="sym">AAPL</span><span class="px">$213.88</span><span class="chg" style="color:#22c55e">^1.24%</span></div>
+      <div class="gcc-ticker"><span class="sym">^TASI</span><span class="px">11,842</span><span class="chg" style="color:#ef4444">v0.38%</span></div>
+      <div class="gcc-ticker"><span class="sym">^DFMGI</span><span class="px">4,521</span><span class="chg" style="color:#22c55e">^0.71%</span></div>
     </div>
   </div>
   <div class="gcc-right">
@@ -218,7 +217,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Global controls (inline, compact) ────────────────────────────────────────
+# -- Global controls (inline, compact) ----------------------------------------
 with st.container():
     c = st.columns([1.2, 1, 1, 1, 1, 1, 1, 0.7])
     ticker_label = c[0].selectbox("Asset", list(GCC_TICKERS.keys()), index=3, label_visibility="collapsed")
@@ -234,23 +233,23 @@ with st.container():
     K     = c[2].number_input("K", value=round(S_live, 2), format="%.2f", label_visibility="collapsed")
     T     = c[3].number_input("T (yrs)", value=0.25, min_value=0.01, max_value=3.0, step=0.01, format="%.2f", label_visibility="collapsed")
     r     = c[4].number_input("r", value=0.05, min_value=0.0, max_value=0.20, step=0.005, format="%.3f", label_visibility="collapsed")
-    sigma = c[5].number_input("σ", value=0.25, min_value=0.01, max_value=1.5, step=0.01, format="%.2f", label_visibility="collapsed")
+    sigma = c[5].number_input("", value=0.25, min_value=0.01, max_value=1.5, step=0.01, format="%.2f", label_visibility="collapsed")
     opt_t = c[6].selectbox("Type", ["call","put"], label_visibility="collapsed")
     c[7].markdown(f"""
     <div style="padding:6px 0;font-size:9px;color:#4a5568;letter-spacing:.1em;line-height:1.8">
-    S&nbsp;&nbsp;spot<br>K&nbsp;&nbsp;strike<br>T&nbsp;&nbsp;expiry<br>r&nbsp;&nbsp;rate&nbsp;&nbsp;σ&nbsp;&nbsp;vol
+    S&nbsp;&nbsp;spot<br>K&nbsp;&nbsp;strike<br>T&nbsp;&nbsp;expiry<br>r&nbsp;&nbsp;rate&nbsp;&nbsp;&nbsp;&nbsp;vol
     </div>""", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# ── Tabs ──────────────────────────────────────────────────────────────────────
+# -- Tabs ----------------------------------------------------------------------
 tab1, tab2, tab3, tab4 = st.tabs([
     "Options Pricer", "Monte Carlo", "Volatility", "Portfolio"
 ])
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  TAB 1 — OPTIONS PRICER                                                    ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+# +==============================================================================+
+# |  TAB 1 - OPTIONS PRICER                                                    |
+# +==============================================================================+
 with tab1:
     bs       = BlackScholes(S, K, T, r, sigma)
     call_res = bs.compute_all("call")
@@ -276,7 +275,7 @@ with tab1:
     with left:
         st.markdown('<div class="gcc-section">Greeks</div>', unsafe_allow_html=True)
         greeks_df = pd.DataFrame({
-            "Greek": ["Δ Delta", "Γ Gamma", "Θ Theta/day", "ν Vega/1%", "ρ Rho/1%"],
+            "Greek": [" Delta", " Gamma", " Theta/day", " Vega/1%", " Rho/1%"],
             "Value": [
                 f"{active.delta:+.5f}",
                 f"{active.gamma:.6f}",
@@ -300,10 +299,10 @@ with tab1:
         iv_sol = implied_volatility(mkt, S, K, T, r, opt_t)
         iv_col1, iv_col2 = st.columns(2)
         iv_col1.metric("Solved IV", f"{iv_sol*100:.2f}%" if not np.isnan(iv_sol) else "N/A")
-        iv_col2.metric("vs Input σ", f"{(iv_sol-sigma)*100:+.2f}%" if not np.isnan(iv_sol) else "—")
+        iv_col2.metric("vs Input ", f"{(iv_sol-sigma)*100:+.2f}%" if not np.isnan(iv_sol) else "-")
 
     with mid:
-        st.markdown('<div class="gcc-section">IV Surface — Smile / Skew</div>', unsafe_allow_html=True)
+        st.markdown('<div class="gcc-section">IV Surface - Smile / Skew</div>', unsafe_allow_html=True)
         st.plotly_chart(charts.iv_surface_chart(S, sigma), use_container_width=True)
 
     with right:
@@ -312,30 +311,30 @@ with tab1:
 
         st.markdown('<div class="gcc-section" style="margin-top:8px">Scenario P&L</div>', unsafe_allow_html=True)
         scenarios = []
-        for shock, label in [(0.05,"S+5%"),(-0.05,"S−5%"),(0.10,"S+10%"),(-0.10,"S−10%")]:
+        for shock, label in [(0.05,"S+5%"),(-0.05,"S5%"),(0.10,"S+10%"),(-0.10,"S10%")]:
             bs2 = BlackScholes(S*(1+shock), K, T, r, sigma)
             pnl = bs2.price(opt_t) - active.price
             scenarios.append({"Scenario":label, "P&L":f"${pnl:+.3f}"})
-        for vol_shock, label in [(0.05,"σ+5%"),(-0.05,"σ−5%")]:
+        for vol_shock, label in [(0.05,"+5%"),(-0.05,"5%")]:
             bs2 = BlackScholes(S, K, T, r, max(sigma+vol_shock,0.01))
             pnl = bs2.price(opt_t) - active.price
             scenarios.append({"Scenario":label, "P&L":f"${pnl:+.3f}"})
         bs_1d = BlackScholes(S, K, max(T-1/365,0.001), r, sigma)
         pnl_1d = bs_1d.price(opt_t) - active.price
-        scenarios.append({"Scenario":"−1 day","P&L":f"${pnl_1d:+.3f}"})
+        scenarios.append({"Scenario":"1 day","P&L":f"${pnl_1d:+.3f}"})
         sc_df = pd.DataFrame(scenarios).set_index("Scenario")
         st.dataframe(sc_df, use_container_width=True, height=260)
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  TAB 2 — MONTE CARLO                                                       ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+# +==============================================================================+
+# |  TAB 2 - MONTE CARLO                                                       |
+# +==============================================================================+
 with tab2:
     mc_col1, mc_col2 = st.columns([4, 1])
     with mc_col2:
         mc_paths = st.selectbox("Paths", [1000,5000,10000,25000], index=2)
         mc_T     = st.number_input("Horizon (yrs)", value=1.0, min_value=0.25, max_value=3.0, step=0.25)
 
-    with st.spinner("Simulating…"):
+    with st.spinner("Simulating"):
         mc = MonteCarlo(S0=S, mu=r, sigma=sigma, T=mc_T, N=mc_paths)
         mc_result = mc.simulate()
         stress    = mc.stress_test()
@@ -378,11 +377,11 @@ with tab2:
     ).set_index("Percentile").T
     st.dataframe(pct_df, use_container_width=True, height=100)
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  TAB 3 — VOLATILITY                                                        ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+# +==============================================================================+
+# |  TAB 3 - VOLATILITY                                                        |
+# +==============================================================================+
 with tab3:
-    with st.spinner("Fitting GARCH(1,1)…"):
+    with st.spinner("Fitting GARCH(1,1)"):
         try:
             price_data  = fetch_ohlcv(ticker, period_years=3)
             garch_model = GARCHModel(price_data["Log_Returns"])
@@ -393,7 +392,7 @@ with tab3:
             st.stop()
 
     regime_cls = {"calm":"regime-calm","normal":"regime-normal","fearful":"regime-fearful"}[g.regime]
-    st.markdown(f'<span class="gcc-badge {regime_cls}">▶ REGIME: {g.regime.upper()}</span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="gcc-badge {regime_cls}">> REGIME: {g.regime.upper()}</span>', unsafe_allow_html=True)
 
     cols = st.columns(5)
     cols[0].metric("Current Vol",  f"{g.current_vol*100:.2f}%")
@@ -410,7 +409,7 @@ with tab3:
     with gl:
         st.markdown('<div class="gcc-section">GARCH(1,1) Parameters</div>', unsafe_allow_html=True)
         param_df = pd.DataFrame({
-            "Parameter": ["ω (omega)","α (alpha)","β (beta)","α+β","Long-run σ"],
+            "Parameter": [" (omega)"," (alpha)"," (beta)","+","Long-run "],
             "Value":     [f"{g.omega:.6f}",f"{g.alpha:.4f}",f"{g.beta:.4f}",
                           f"{g.persistence:.4f}",f"{g.long_run_vol*100:.2f}%"],
         }).set_index("Parameter")
@@ -436,12 +435,12 @@ with tab3:
     fig_pv.update_layout(paper_bgcolor=charts.BG,plot_bgcolor=charts.BG,font=dict(family=charts.FONT,color=charts.TEXT),
         height=380,margin=dict(l=50,r=20,t=10,b=40),legend=dict(bgcolor=charts.BG,font=dict(color=charts.TEXT,size=10)),
         xaxis2=dict(gridcolor=charts.GRID),yaxis=dict(gridcolor=charts.GRID,title="Price"),
-        yaxis2=dict(gridcolor=charts.GRID,title="σ (%)"))
+        yaxis2=dict(gridcolor=charts.GRID,title=" (%)"))
     st.plotly_chart(fig_pv, use_container_width=True)
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  TAB 4 — PORTFOLIO                                                         ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+# +==============================================================================+
+# |  TAB 4 - PORTFOLIO                                                         |
+# +==============================================================================+
 with tab4:
     pf_col1, pf_col2, pf_col3 = st.columns([3,1,1])
     with pf_col2:
@@ -451,11 +450,11 @@ with tab4:
     with pf_col3:
         rf_pf = st.number_input("Rf %", value=5.0, step=0.5) / 100
 
-    with st.spinner("Computing efficient frontier…"):
+    with st.spinner("Computing efficient frontier"):
         try:
             price_dict = fetch_multiple(portfolio_tickers, period_years=3)
             if len(price_dict)<2:
-                st.warning("Need ≥2 assets."); st.stop()
+                st.warning("Need 2 assets."); st.stop()
             opt = PortfolioOptimiser(price_dict, risk_free=rf_pf, n_portfolios=500)
             fr  = opt.compute()
         except Exception as e:
@@ -509,11 +508,11 @@ with tab4:
         })
         st.dataframe(stats_df, use_container_width=True)
 
-# ── Status bar ────────────────────────────────────────────────────────────────
+# -- Status bar ----------------------------------------------------------------
 st.markdown("""
 <div class="gcc-statusbar">
   <span style="color:#60a5fa">Model</span>&nbsp;<span>Black-Scholes 1973</span>
-  &nbsp;&nbsp;<span style="color:#60a5fa">Data</span>&nbsp;<span>yfinance · 15min delay</span>
+  &nbsp;&nbsp;<span style="color:#60a5fa">Data</span>&nbsp;<span>yfinance  15min delay</span>
   &nbsp;&nbsp;<span style="color:#60a5fa">Vol</span>&nbsp;<span>GARCH(1,1)</span>
   &nbsp;&nbsp;<span style="color:#60a5fa">MC Paths</span>&nbsp;<span>10,000 GBM</span>
   <span style="margin-left:auto;color:#1d3f7a">GCC Derivatives Terminal v1.0</span>
