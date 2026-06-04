@@ -95,7 +95,7 @@ section[data-testid="stSidebar"]{display:none!important}
   border:none!important;
   border-right:1px solid #1d2130!important;
   border-radius:0!important;
-  padding:10px 16px!important;
+  padding:6px 12px!important;
 }
 [data-testid="metric-container"] label{
   font-size:9px!important;color:#4a5568!important;
@@ -103,7 +103,7 @@ section[data-testid="stSidebar"]{display:none!important}
   font-family:'Geist Mono',monospace!important;
 }
 [data-testid="metric-container"] [data-testid="stMetricValue"]{
-  font-size:18px!important;font-weight:500!important;
+  font-size:13px!important;font-weight:500!important;
   font-family:'Geist Mono',monospace!important;
   color:#e2e8f0!important;
 }
@@ -160,8 +160,11 @@ hr{border-color:#1d2130!important;margin:0!important}
 }
 
 /* -- Column padding reset -- */
-[data-testid="column"]{padding:0 6px!important}
-[data-testid="stVerticalBlock"]{gap:6px!important}
+[data-testid="column"]{padding:0 4px!important}
+[data-testid="stVerticalBlock"]{gap:4px!important}
+[data-testid="stVerticalBlockBorderWrapper"]{gap:4px!important}
+div.element-container{margin:0!important}
+.stPlotlyChart{margin:0!important}
 
 /* -- Plotly -- */
 .js-plotly-plot .plotly .main-svg{background:transparent!important}
@@ -181,7 +184,13 @@ hr{border-color:#1d2130!important;margin:0!important}
 .regime-normal{background:#0c1a3a;border:1px solid #3b82f6;color:#3b82f6}
 .regime-fearful{background:#2d0a0a;border:1px solid #ef4444;color:#ef4444}
 
-/* -- Scrollbar -- */
+/* -- Number inputs compact -- */
+[data-testid="stNumberInput"] input{
+  font-size:11px!important;padding:4px 8px!important;height:30px!important;
+  font-family:'Geist Mono',monospace!important;
+  background:#111318!important;border-color:#252a38!important;
+}
+[data-testid="stNumberInput"] button{height:30px!important;width:24px!important}
 ::-webkit-scrollbar{width:4px;background:#08090c}
 ::-webkit-scrollbar-thumb{background:#1d2130;border-radius:2px}
 </style>
